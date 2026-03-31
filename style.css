@@ -63,3 +63,33 @@ body {
     border-color: #4b0082;
     box-shadow: 0 0 15px #8a2be2;
 }
+
+/* 3D Контейнер и Катсцена */
+#game-container {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+}
+
+canvas {
+    display: block; /* Убирает отступы у 3D холста */
+}
+
+#cutscene-ui {
+    position: absolute;
+    bottom: 50px;
+    width: 100%;
+    text-align: center;
+    pointer-events: none; /* Чтобы клики проходили сквозь текст */
+}
+
+#cutscene-text {
+    font-size: 24px;
+    color: white;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 15px 30px;
+    display: inline-block;
+    border: 2px solid #ff2a2a;
+    border-radius: 10px;
+    text-shadow: 0 0 10px red;
+}
