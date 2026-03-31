@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jujutsu Merger</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Подключаем Three.js для 3D графики -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
     <!-- Главное меню -->
@@ -19,8 +21,13 @@
         </div>
     </div>
 
-    <!-- Контейнер для 3D игры (пока скрыт) -->
-    <div id="game-container" style="display: none;"></div>
+    <!-- Контейнер для 3D игры -->
+    <div id="game-container" style="display: none;">
+        <!-- Интерфейс катсцены -->
+        <div id="cutscene-ui">
+            <h2 id="cutscene-text">Обучение: Сильнейший маг против Короля Проклятий</h2>
+        </div>
+    </div>
 
     <script src="main.js"></script>
 </body>
