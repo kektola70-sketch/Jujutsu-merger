@@ -85,23 +85,20 @@ function createPart(w, h, d, color, x, y, z) {
     return mesh;
 }
 
-// Генератор реалистичных аниме-волос (пряди-конусы)
+// Генератор реалистичных аниме-волос
 function createAnimeHair(color, yOffset) {
     const group = new THREE.Group();
     const mat = new THREE.MeshStandardMaterial({ color: color });
 
-    // Базовый "шлем" из волос
     const baseGeo = new THREE.SphereGeometry(1.05, 32, 16, 0, Math.PI * 2, 0, Math.PI / 1.7);
     const base = new THREE.Mesh(baseGeo, mat);
     base.position.y = 0.2;
     group.add(base);
 
-    // 35 конусов, торчащих в разные стороны для эффекта "ежика"
     for(let i = 0; i < 35; i++) {
         const spikeGeo = new THREE.ConeGeometry(0.25, 1.2, 8);
         const spike = new THREE.Mesh(spikeGeo, mat);
         
-        // Распределяем по верхней полусфере
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.random() * Math.PI / 2.2; 
 
@@ -111,13 +108,12 @@ function createAnimeHair(color, yOffset) {
             1.0 * Math.sin(phi) * Math.sin(theta)
         );
         
-        // Направляем острием наружу
         spike.lookAt(
             2.0 * Math.sin(phi) * Math.cos(theta),
             2.0 * Math.cos(phi) + 0.2,
             2.0 * Math.sin(phi) * Math.sin(theta)
         );
-        spike.rotateX(Math.PI / 2); // Поворачиваем конус острием по направлению lookAt
+        spike.rotateX(Math.PI / 2);
 
         group.add(spike);
     }
@@ -126,7 +122,7 @@ function createAnimeHair(color, yOffset) {
     return group;
 }
 
-// Кольцо для татуировок на руках (облегает цилиндр)
+// Кольцо для татуировок
 function createTattooRing(radius, color, yOffset) {
     const geo = new THREE.TorusGeometry(radius, 0.05, 8, 24);
     const mat = new THREE.MeshStandardMaterial({ color: color });
@@ -141,27 +137,25 @@ function createGojo() {
     const group = new THREE.Group();
     const skin = 0xffe0bd, black = 0x111111, white = 0xffffff, blue = 0x00aaff;
 
-    // Ноги круглые (Цилиндры)
+    // Ноги
     group.add(createCylinder(0.4, 3, white, -0.6, 1.5, 0));
     group.add(createCylinder(0.4, 3, white, 0.6, 1.5, 0));
 
-    // Торс круглый
+    // Торс
     group.add(createCylinder(1.1, 3, black, 0, 4.5, 0));
 
-    // Руки круглые
-    group.add(createCylinder(0.35, 3, skin, -1.6, 4.5, 0));
-    group.add(createCylinder(0.35, 3, skin, 1.6, 4.5, 0));
+    // Руки (сдвинуты к торсу на 1.45, чтобы не висели в воздухе)
+    group.add(createCylinder(0.35, 3, skin, -1.45, 4.5, 0));
+    group.add(createCylinder(0.35, 3, skin, 1.45, 4.5, 0));
 
-    // Голова круглая (Сфера)
+    // Голова
     const head = createSphere(1, skin, 0, 7, 0);
-    
-    // Лицо (выдвинуто вперед по Z, чтобы не проваливалось в сферу)
-    head.add(createPart(0.3, 0.15, 0.1, blue, -0.35, 0.1, 0.95)); // Левый глаз
-    head.add(createPart(0.3, 0.15, 0.1, blue, 0.35, 0.1, 0.95));  // Правый глаз
-    head.add(createPart(0.5, 0.05, 0.1, black, 0, -0.3, 0.95));   // Улыбка
+    head.add(createPart(0.3, 0.15, 0.1, blue, -0.35, 0.1, 0.95)); 
+    head.add(createPart(0.3, 0.15, 0.1, blue, 0.35, 0.1, 0.95));  
+    head.add(createPart(0.5, 0.05, 0.1, black, 0, -0.3, 0.95));   
     group.add(head);
 
-    // Реалистичные белые волосы
+    // Волосы
     head.add(createAnimeHair(white, 0));
 
     return group;
@@ -172,56 +166,50 @@ function createSukuna() {
     const group = new THREE.Group();
     const skin = 0xffe0bd, white = 0xffffff, red = 0xff0000, tattoo = 0x330000, black = 0x000000;
 
-    // Ноги круглые
+    // Ноги
     group.add(createCylinder(0.4, 3, white, -0.6, 1.5, 0));
     group.add(createCylinder(0.4, 3, white, 0.6, 1.5, 0));
 
-    // Торс круглый
+    // Торс
     const torso = createCylinder(1.1, 3, white, 0, 4.5, 0);
-    torso.add(createPart(1.0, 0.2, 0.1, tattoo, 0, 0.5, 1.05)); // Тату на груди
+    torso.add(createPart(1.0, 0.2, 0.1, tattoo, 0, 0.5, 1.05)); 
     group.add(torso);
 
-    // ОСНОВНЫЕ РУКИ (С кольцевыми тату)
-    const armL1 = createCylinder(0.35, 3, skin, -1.6, 4.5, 0);
+    // ОСНОВНЫЕ РУКИ (плотно прилегают к торсу по бокам)
+    const armL1 = createCylinder(0.35, 3, skin, -1.45, 4.5, 0);
     armL1.add(createTattooRing(0.35, tattoo, 0.5));
     armL1.add(createTattooRing(0.35, tattoo, -0.5));
     group.add(armL1);
 
-    const armR1 = createCylinder(0.35, 3, skin, 1.6, 4.5, 0);
+    const armR1 = createCylinder(0.35, 3, skin, 1.45, 4.5, 0);
     armR1.add(createTattooRing(0.35, tattoo, 0.5));
     armR1.add(createTattooRing(0.35, tattoo, -0.5));
     group.add(armR1);
 
-    // ДОПОЛНИТЕЛЬНЫЕ РУКИ (Чуть сзади и под углом)
-    const armL2 = createCylinder(0.35, 3, skin, -2.0, 3.5, -0.6);
-    armL2.rotation.z = Math.PI / 8;
+    // ДОПОЛНИТЕЛЬНЫЕ РУКИ (растут из спины/нижних ребер, отведены назад и наружу)
+    const armL2 = createCylinder(0.35, 3, skin, -1.2, 3.6, -0.6);
+    armL2.rotation.z = Math.PI / 6;  // Наклон в сторону от тела
+    armL2.rotation.x = -Math.PI / 8; // Наклон назад, чтобы не пересекаться с armL1
     armL2.add(createTattooRing(0.35, tattoo, 0));
     group.add(armL2);
 
-    const armR2 = createCylinder(0.35, 3, skin, 2.0, 3.5, -0.6);
-    armR2.rotation.z = -Math.PI / 8;
+    const armR2 = createCylinder(0.35, 3, skin, 1.2, 3.6, -0.6);
+    armR2.rotation.z = -Math.PI / 6;
+    armR2.rotation.x = -Math.PI / 8;
     armR2.add(createTattooRing(0.35, tattoo, 0));
     group.add(armR2);
 
-    // Голова круглая
+    // Голова
     const head = createSphere(1, skin, 0, 7, 0);
-    
-    // Тату на лице
     head.add(createPart(1.8, 0.1, 0.1, tattoo, 0, 0.4, 0.85)); 
-    
-    // Основные глаза (Красные)
     head.add(createPart(0.3, 0.15, 0.1, red, -0.35, 0.1, 0.95));
     head.add(createPart(0.3, 0.15, 0.1, red, 0.35, 0.1, 0.95));
-    
-    // Доп. глаза (Красные, ниже)
     head.add(createPart(0.2, 0.1, 0.1, red, -0.45, -0.15, 0.95));
     head.add(createPart(0.2, 0.1, 0.1, red, 0.45, -0.15, 0.95));
-    
-    // Улыбка
     head.add(createPart(0.6, 0.05, 0.1, black, 0, -0.4, 0.95));
     group.add(head);
 
-    // Реалистичные красные волосы
+    // Волосы
     head.add(createAnimeHair(red, 0));
 
     return group;
@@ -231,7 +219,7 @@ function createSukuna() {
 function animate() {
     requestAnimationFrame(animate);
 
-    // Плавное вращение камеры вокруг центра (эпичный ракурс)
+    // Вращение камеры
     angle += 0.003;
     camera.position.x = Math.sin(angle) * 12;
     camera.position.z = Math.cos(angle) * 12;
