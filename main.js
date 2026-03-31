@@ -144,7 +144,7 @@ function createGojo() {
     // Торс
     group.add(createCylinder(1.1, 3, black, 0, 4.5, 0));
 
-    // Руки (сдвинуты к торсу на 1.45, чтобы не висели в воздухе)
+    // Руки (сдвинуты к торсу на 1.45)
     group.add(createCylinder(0.35, 3, skin, -1.45, 4.5, 0));
     group.add(createCylinder(0.35, 3, skin, 1.45, 4.5, 0));
 
@@ -175,7 +175,7 @@ function createSukuna() {
     torso.add(createPart(1.0, 0.2, 0.1, tattoo, 0, 0.5, 1.05)); 
     group.add(torso);
 
-    // ОСНОВНЫЕ РУКИ (плотно прилегают к торсу по бокам)
+    // ОСНОВНЫЕ РУКИ
     const armL1 = createCylinder(0.35, 3, skin, -1.45, 4.5, 0);
     armL1.add(createTattooRing(0.35, tattoo, 0.5));
     armL1.add(createTattooRing(0.35, tattoo, -0.5));
@@ -186,16 +186,16 @@ function createSukuna() {
     armR1.add(createTattooRing(0.35, tattoo, -0.5));
     group.add(armR1);
 
-    // ДОПОЛНИТЕЛЬНЫЕ РУКИ (растут из спины/нижних ребер, отведены назад и наружу)
-    const armL2 = createCylinder(0.35, 3, skin, -1.2, 3.6, -0.6);
-    armL2.rotation.z = Math.PI / 6;  // Наклон в сторону от тела
-    armL2.rotation.x = -Math.PI / 8; // Наклон назад, чтобы не пересекаться с armL1
+    // ИСПРАВЛЕННЫЕ ДОПОЛНИТЕЛЬНЫЕ РУКИ
+    // Теперь они просто находятся чуть ниже (Y=3.8) и чуть дальше (Z=-0.6, X=1.55)
+    // И имеют только легкий наклон наружу по оси Z, чтобы не смотрелись перевернутыми
+    const armL2 = createCylinder(0.35, 3, skin, -1.55, 3.8, -0.6);
+    armL2.rotation.z = Math.PI / 12; // Легкий наклон влево
     armL2.add(createTattooRing(0.35, tattoo, 0));
     group.add(armL2);
 
-    const armR2 = createCylinder(0.35, 3, skin, 1.2, 3.6, -0.6);
-    armR2.rotation.z = -Math.PI / 6;
-    armR2.rotation.x = -Math.PI / 8;
+    const armR2 = createCylinder(0.35, 3, skin, 1.55, 3.8, -0.6);
+    armR2.rotation.z = -Math.PI / 12; // Легкий наклон вправо
     armR2.add(createTattooRing(0.35, tattoo, 0));
     group.add(armR2);
 
