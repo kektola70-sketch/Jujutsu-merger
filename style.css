@@ -1,95 +1,50 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Courier New', Courier, monospace; /* Строгий шрифт */
-}
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Courier New', Courier, monospace; user-select: none; }
+body { background-color: #0a0a0a; color: white; overflow: hidden; }
 
-body {
-    background-color: #0a0a0a; /* Почти черный фон */
-    color: white;
-    overflow: hidden; /* Чтобы не было прокрутки */
-}
+#main-menu { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: radial-gradient(circle, #2a0808 0%, #000000 70%); }
+.game-title { font-size: 50px; margin-bottom: 40px; color: #ff2a2a; text-transform: uppercase; text-shadow: 0 0 20px #ff0000; letter-spacing: 5px; }
+.button-container { display: flex; flex-direction: column; gap: 15px; }
+.menu-btn { background-color: rgba(20, 20, 20, 0.8); color: white; border: 2px solid #555; padding: 15px 40px; font-size: 20px; font-weight: bold; text-transform: uppercase; cursor: pointer; width: 300px; clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%); }
+.menu-btn:hover { background-color: #ff2a2a; color: black; }
 
-#main-menu {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100vh;
-    background: radial-gradient(circle, #2a0808 0%, #000000 70%); /* Красно-черный градиент */
-}
+#game-container { width: 100vw; height: 100vh; position: relative; }
+canvas { display: block; }
+#cutscene-ui { position: absolute; bottom: 50px; width: 100%; text-align: center; pointer-events: none; }
+#cutscene-text { font-size: 24px; background: rgba(0,0,0,0.7); padding: 15px; border: 2px solid red; border-radius: 10px; }
 
-.game-title {
-    font-size: 50px;
-    margin-bottom: 40px;
-    color: #ff2a2a;
-    text-transform: uppercase;
-    text-shadow: 0 0 20px #ff0000, 0 0 40px #8b0000; /* Эффект свечения */
-    letter-spacing: 5px;
-}
+/* === БОЕВОЙ ИНТЕРФЕЙС === */
+#battle-ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; padding: 20px; }
 
-.button-container {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
+/* ХП и Черная молния (Слева) */
+#left-ui { position: absolute; top: 20px; left: 20px; pointer-events: auto; width: 300px; }
+.player-hp-box { width: 100%; margin-bottom: 10px; }
+.name-tag { font-size: 20px; font-weight: bold; text-shadow: 2px 2px 0 #000; }
+.hp-bar-bg { width: 100%; height: 20px; background-color: #222; border: 2px solid #fff; }
+.hp-bar-fill { height: 100%; transition: width 0.2s; }
+.gojo-color { background-color: #00aaff; box-shadow: 0 0 10px #00aaff; }
+.sukuna-color { background-color: #ff0000; box-shadow: 0 0 10px #ff0000; }
+.hp-text { font-size: 14px; text-shadow: 1px 1px 0 #000; }
 
-.menu-btn {
-    background-color: rgba(20, 20, 20, 0.8);
-    color: white;
-    border: 2px solid #555;
-    padding: 15px 40px;
-    font-size: 20px;
-    font-weight: bold;
-    text-transform: uppercase;
-    cursor: pointer;
-    width: 300px;
-    transition: all 0.3s ease;
-    clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%); /* Скошенные углы для стиля аниме */
-}
+/* Система Black Flash */
+#bf-meter { display: flex; gap: 5px; margin-top: 5px; }
+.bf-slot { width: 40px; height: 15px; border: 2px solid rgba(255,255,255,0.5); background: transparent; transition: all 0.3s; }
+.bf-slot.filling { background: rgba(255,255,255,0.8); } /* Заполняется белым */
+.bf-slot.ready { background: #0000ff; border-color: #00ffff; box-shadow: 0 0 10px #0000ff; } /* Готово - Синий */
+#bf-timer { font-size: 24px; color: #00ffff; font-weight: bold; text-shadow: 0 0 10px #0000ff; margin-top: 5px; }
 
-.menu-btn:hover {
-    background-color: #ff2a2a;
-    border-color: #ff0000;
-    box-shadow: 0 0 15px #ff0000;
-    transform: scale(1.05);
-    color: black;
-}
+/* Сукуна (Центр) */
+#center-ui { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); width: 300px; }
 
-/* Спец-цвет для AFK мода */
-#btn-afk:hover {
-    background-color: #8a2be2; /* Фиолетовый (Техника Годжо) */
-    border-color: #4b0082;
-    box-shadow: 0 0 15px #8a2be2;
-}
+/* Скиллы (Справа вверху) */
+#skills-ui { position: absolute; top: 20px; right: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; pointer-events: auto; }
+.skill-btn { background: rgba(0,0,0,0.6); color: #00ffff; border: 1px solid #00aaff; padding: 10px; font-weight: bold; cursor: pointer; border-radius: 5px; transition: 0.2s; }
+.skill-btn:active { background: #00aaff; color: black; }
+.DE-btn { border-color: #ff00ff; color: #ff00ff; }
+.DE-btn:active { background: #ff00ff; color: white; }
 
-/* 3D Контейнер и Катсцена */
-#game-container {
-    width: 100vw;
-    height: 100vh;
-    position: relative;
-}
-
-canvas {
-    display: block; /* Убирает отступы у 3D холста */
-}
-
-#cutscene-ui {
-    position: absolute;
-    bottom: 50px;
-    width: 100%;
-    text-align: center;
-    pointer-events: none; /* Чтобы клики проходили сквозь текст */
-}
-
-#cutscene-text {
-    font-size: 24px;
-    color: white;
-    background: rgba(0, 0, 0, 0.7);
-    padding: 15px 30px;
-    display: inline-block;
-    border: 2px solid #ff2a2a;
-    border-radius: 10px;
-    text-shadow: 0 0 10px red;
-}
+/* Действия (Справа внизу) */
+#action-ui { position: absolute; bottom: 20px; right: 20px; display: flex; flex-wrap: wrap; gap: 10px; width: 250px; justify-content: flex-end; pointer-events: auto; }
+.action-btn { width: 70px; height: 70px; border-radius: 50%; background: rgba(50,50,50,0.8); color: white; border: 2px solid #888; font-weight: bold; cursor: pointer; }
+.action-btn:active { transform: scale(0.9); }
+.hit-btn { border-color: white; width: 80px; height: 80px; }
+.heavy-btn { border-color: #ffaa00; width: 90px; height: 90px; background: rgba(100,50,0,0.8); }
