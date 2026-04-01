@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jujutsu Merger</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Подключаем Three.js для 3D графики -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
@@ -23,9 +22,66 @@
 
     <!-- Контейнер для 3D игры -->
     <div id="game-container" style="display: none;">
-        <!-- Интерфейс катсцены -->
+        
         <div id="cutscene-ui">
             <h2 id="cutscene-text">Обучение: Сильнейший маг против Короля Проклятий</h2>
+        </div>
+
+        <!-- БОЕВОЙ ИНТЕРФЕЙС -->
+        <div id="battle-ui" style="display: none;">
+            
+            <!-- Левая сторона: ХП и Черная молния -->
+            <div id="left-ui">
+                <div class="player-hp-box">
+                    <div class="name-tag">Satoru Gojo</div>
+                    <div class="hp-bar-bg">
+                        <div id="gojo-hp-fill" class="hp-bar-fill gojo-color"></div>
+                    </div>
+                    <div id="gojo-hp-text" class="hp-text">5000 / 5000</div>
+                </div>
+                <!-- Шкала Черной Молнии -->
+                <div id="bf-meter">
+                    <div class="bf-slot" id="bf-1"></div>
+                    <div class="bf-slot" id="bf-2"></div>
+                    <div class="bf-slot" id="bf-3"></div>
+                    <div class="bf-slot" id="bf-4"></div>
+                    <div class="bf-slot" id="bf-5"></div>
+                </div>
+                <div id="bf-timer" style="display:none;">2.0s</div>
+            </div>
+
+            <!-- Сукуна ХП (По центру сверху) -->
+            <div id="center-ui">
+                <div class="player-hp-box right-side">
+                    <div class="name-tag">Ryomen Sukuna</div>
+                    <div class="hp-bar-bg">
+                        <div id="sukuna-hp-fill" class="hp-bar-fill sukuna-color"></div>
+                    </div>
+                    <div id="sukuna-hp-text" class="hp-text">10000 / 10000</div>
+                </div>
+            </div>
+
+            <!-- Правая сторона сверху: СКИЛЛЫ -->
+            <div id="skills-ui">
+                <button class="skill-btn" onclick="useSkill(1)">1. Blue</button>
+                <button class="skill-btn" onclick="useSkill(2)">2. Red</button>
+                <button class="skill-btn" onclick="useSkill(3)">3. Blue MAX</button>
+                <button class="skill-btn" onclick="useSkill(4)">4. Red MAX</button>
+                <button class="skill-btn" onclick="useSkill(5)">5. Infinity</button>
+                <button class="skill-btn" onclick="useSkill(6)">6. Purple</button>
+                <button class="skill-btn" onclick="useSkill(7)">7. Awakening</button>
+                <button class="skill-btn DE-btn" onclick="useSkill(8)">8. DOMAIN</button>
+            </div>
+
+            <!-- Правая сторона снизу: ДЕЙСТВИЯ -->
+            <div id="action-ui">
+                <button class="action-btn" id="btn-dash">Dash</button>
+                <button class="action-btn" id="btn-dash-enemy">Dash target</button>
+                <button class="action-btn" id="btn-block">Block</button>
+                <button class="action-btn hit-btn" id="btn-light">Attack</button>
+                <button class="action-btn heavy-btn" id="btn-heavy">Heavy (BF)</button>
+            </div>
+            
         </div>
     </div>
 
