@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// === 3D ДВИЖОК ===
 let scene, camera, renderer;
 let angle = 0;
 let isCutscene = true;
@@ -14,15 +13,24 @@ let gojoModel, sukunaModel;
 
 // Боевые переменные
 let gojoHp = 5000;
-let sukunaHp = 10000;
-let hitCount = 0;      // Удары до Black Flash
-let bfCharges = 0;     // Накоплено молний (до 5)
-let lastHeavyTap = 0;  // Для двойного клика
+let sukunaHp = 25000; // ХП Сукуны теперь 25000!
+let isDead = false;
+
+let hitCount = 0;
+let bfCharges = 0;
+let lastHeavyTap = 0;
 let bfTimerActive = false;
 let bfTimeLeft = 0;
 
-// Массив для анимации частиц (скиллов)
+// Переменные движения и камеры
+let move = { up: false, down: false, left: false, right: false };
+let isLockedOn = false;
 let activeProjectiles = [];
+
+// Скиллы
+let isInfinityActive = false;
+let infinityShieldMesh = null;
+let isCastingPurple = false;
 
 function init3DScene() {
     scene = new THREE.Scene();
@@ -30,8 +38,7 @@ function init3DScene() {
     scene.fog = new THREE.Fog(0x1a1a1a, 10, 50);
 
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 5, 15);
-
+    
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById('game-container').appendChild(renderer.domElement);
@@ -42,19 +49,19 @@ function init3DScene() {
     dirLight.position.set(10, 20, 10);
     scene.add(dirLight);
 
-    const floorGeo = new THREE.PlaneGeometry(100, 100);
+    const floorGeo = new THREE.PlaneGeometry(200, 200);
     const floorMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
 
     gojoModel = createGojo();
-    gojoModel.position.set(-3.5, 0, 0);
+    gojoModel.position.set(-5, 0, 0);
     gojoModel.rotation.y = Math.PI / 2;
     scene.add(gojoModel);
 
     sukunaModel = createSukuna();
-    sukunaModel.position.set(3.5, 0, 0);
+    sukunaModel.position.set(5, 0, 0);
     sukunaModel.rotation.y = -Math.PI / 2;
     scene.add(sukunaModel);
 
@@ -67,158 +74,209 @@ function startBattle() {
     isCutscene = false;
     document.getElementById('cutscene-ui').style.display = 'none';
     document.getElementById('battle-ui').style.display = 'block';
-    
-    // Камера за спину
-    camera.position.set(-7, 5.5, 3);
-    camera.lookAt(sukunaModel.position.x, 4, sukunaModel.position.z);
 }
 
-// === УПРАВЛЕНИЕ И BLACK FLASH ===
 function setupControls() {
-    // Обычный удар (накапливает БФ)
+    // Удары
     document.getElementById('btn-light').addEventListener('click', () => {
-        if(isCutscene) return;
-        hitCount++;
-        dealDamage(50); // Урон Сукуне
-        updateBFMeter();
+        if(isCutscene || isDead) return;
+        hitCount++; updateBFMeter();
+        dealDamage(100);
     });
 
-    // Тяжелый удар (проверка на Black Flash)
     document.getElementById('btn-heavy').addEventListener('click', () => {
-        if(isCutscene) return;
-        
+        if(isCutscene || isDead) return;
         let now = Date.now();
-        // Двойное нажатие (менее 500мс) и есть заряды БФ
         if (now - lastHeavyTap < 500 && bfCharges > 0 && !bfTimerActive) {
             startBFTimer();
         } else if (bfTimerActive) {
-            // Если таймер активен и мы нажали снова - ВЫПУСКАЕМ BLACK FLASH!
             executeBlackFlash();
-        } else {
-            dealDamage(150);
-        }
+        } else { dealDamage(250); }
         lastHeavyTap = now;
     });
+
+    // Захват цели (Lock-on)
+    const btnLock = document.getElementById('btn-lockon');
+    btnLock.addEventListener('click', () => {
+        isLockedOn = !isLockedOn;
+        btnLock.innerText = isLockedOn ? "🔒 Lock: ON" : "🔒 Lock: OFF";
+        btnLock.className = isLockedOn ? "locked" : "";
+    });
+
+    // Управление ходьбой (D-pad)
+    const bindDpad = (id, key) => {
+        const btn = document.getElementById(id);
+        btn.addEventListener('mousedown', () => move[key] = true);
+        btn.addEventListener('mouseup', () => move[key] = false);
+        btn.addEventListener('touchstart', (e) => { e.preventDefault(); move[key] = true; });
+        btn.addEventListener('touchend', (e) => { e.preventDefault(); move[key] = false; });
+    };
+    bindDpad('dpad-up', 'up'); bindDpad('dpad-down', 'down');
+    bindDpad('dpad-left', 'left'); bindDpad('dpad-right', 'right');
 }
 
 function updateBFMeter() {
-    // 60 ударов = 1 заряд
-    if (hitCount >= 60 && bfCharges < 5) {
-        hitCount = 0;
-        bfCharges++;
-    }
-    
-    // Обновляем визуал (5 слотов)
+    if (hitCount >= 60 && bfCharges < 5) { hitCount = 0; bfCharges++; }
     for(let i=1; i<=5; i++) {
         let slot = document.getElementById(`bf-${i}`);
-        slot.className = 'bf-slot'; // сброс
-        if (i <= bfCharges) {
-            slot.classList.add('ready'); // Синий (готов)
-        } else if (i === bfCharges + 1) {
-            // Показываем прогресс белым цветом прозрачностью
-            slot.style.backgroundColor = `rgba(255,255,255, ${hitCount/60})`;
-        } else {
-            slot.style.backgroundColor = 'transparent';
-        }
+        slot.className = 'bf-slot';
+        if (i <= bfCharges) slot.classList.add('ready');
+        else if (i === bfCharges + 1) slot.style.backgroundColor = `rgba(255,255,255, ${hitCount/60})`;
+        else slot.style.backgroundColor = 'transparent';
     }
 }
 
 function startBFTimer() {
-    bfTimerActive = true;
-    bfTimeLeft = 2.0;
+    bfTimerActive = true; bfTimeLeft = 2.0;
     document.getElementById('bf-timer').style.display = 'block';
-    
     let timerInterval = setInterval(() => {
         bfTimeLeft -= 0.1;
         document.getElementById('bf-timer').innerText = bfTimeLeft.toFixed(1) + 's';
-        if(bfTimeLeft <= 0) {
-            clearInterval(timerInterval);
-            bfTimerActive = false;
-            document.getElementById('bf-timer').style.display = 'none';
-        }
+        if(bfTimeLeft <= 0) { clearInterval(timerInterval); bfTimerActive = false; document.getElementById('bf-timer').style.display = 'none'; }
     }, 100);
 }
 
 function executeBlackFlash() {
-    bfTimerActive = false;
-    document.getElementById('bf-timer').style.display = 'none';
-    bfCharges--;
-    updateBFMeter();
-    
-    console.log("BLACK FLASH!");
-    dealDamage(1000); // Огромный урон
-    // В будущем добавим вспышку черной молнии в 3D
+    bfTimerActive = false; document.getElementById('bf-timer').style.display = 'none';
+    bfCharges--; updateBFMeter(); dealDamage(2500);
 }
 
+// Система получения урона (И СМЕРТЬ БОССА)
 function dealDamage(amount) {
+    if (isDead) return;
     sukunaHp -= amount;
-    if(sukunaHp < 0) sukunaHp = 0;
-    document.getElementById('sukuna-hp-text').innerText = `${sukunaHp} / 10000`;
-    document.getElementById('sukuna-hp-fill').style.width = `${(sukunaHp/10000)*100}%`;
+    if(sukunaHp <= 0) {
+        sukunaHp = 0;
+        sukunaDeath();
+    }
+    document.getElementById('sukuna-hp-text').innerText = `${sukunaHp} / 25000`;
+    document.getElementById('sukuna-hp-fill').style.width = `${(sukunaHp/25000)*100}%`;
+}
+
+function sukunaDeath() {
+    isDead = true;
+    // Сукуна падает на спину
+    sukunaModel.rotation.x = -Math.PI / 2;
+    sukunaModel.position.y = 1; // Чтобы лежал ровно на земле
+    document.getElementById('win-screen').style.display = 'block';
 }
 
 // === СКИЛЛЫ ГОДЖО ===
 function useSkill(id) {
-    if(isCutscene) return;
+    if(isCutscene || isDead) return;
 
     switch(id) {
-        case 1: // Lapse Blue
-            createProjectile(0x0000ff, gojoModel.position, sukunaModel.position, 'blue');
-            break;
-        case 2: // Reversal Red
-            createExplosion(0xff0000, gojoModel.position);
-            break;
-        case 3: alert("Скилл 3: Blue MAX (В разработке)"); break;
-        case 4: alert("Скилл 4: Red MAX (В разработке)"); break;
-        case 5: alert("Скилл 5: Infinity Shield (В разработке)"); break;
-        case 6: alert("Скилл 6: Hollow Purple (В разработке)"); break;
-        case 7: alert("Скилл 7: Awakening (В разработке)"); break;
-        case 8: alert("Скилл 8: DOMAIN EXPANSION (В разработке)"); break;
+        case 1: createProjectile(0x0000ff, gojoModel.position, 'blue'); break;
+        case 2: createExplosion(0xff0000, gojoModel.position); break;
+        case 5: activateInfinity(); break;
+        case 6: castHollowPurple(); break;
+        case 3: case 4: case 7: case 8: 
+            alert("Эти скиллы будут добавлены в следующем шаге!"); break;
     }
 }
 
-// 3D Логика Скиллов
-function createProjectile(color, startPos, targetPos, type) {
-    const geo = new THREE.SphereGeometry(0.5, 16, 16);
+// Скилл 5: Infinity
+function activateInfinity() {
+    if(isInfinityActive) return;
+    isInfinityActive = true;
+    
+    // Создаем розовую сферу
+    const geo = new THREE.SphereGeometry(3, 32, 32);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.3 });
+    infinityShieldMesh = new THREE.Mesh(geo, mat);
+    gojoModel.add(infinityShieldMesh); // Привязываем к Годжо
+    infinityShieldMesh.position.y = 4;
+
+    setTimeout(() => {
+        isInfinityActive = false;
+        gojoModel.remove(infinityShieldMesh);
+    }, 5000); // Длится 5 секунд
+}
+
+// Скилл 6: Hollow Purple
+function castHollowPurple() {
+    if(isCastingPurple) return;
+    isCastingPurple = true;
+
+    // 1. Годжо подлетает
+    gojoModel.position.y = 3;
+
+    // 2. Появляются шары
+    const redMat = new THREE.MeshBasicMaterial({color: 0xff0000});
+    const blueMat = new THREE.MeshBasicMaterial({color: 0x0000ff});
+    const redOrb = new THREE.Mesh(new THREE.SphereGeometry(0.8), redMat);
+    const blueOrb = new THREE.Mesh(new THREE.SphereGeometry(0.8), blueMat);
+    
+    redOrb.position.set(2, 5, 0); blueOrb.position.set(-2, 5, 0);
+    gojoModel.add(redOrb); gojoModel.add(blueOrb);
+
+    // 3. Через 3 секунды слияние
+    setTimeout(() => {
+        gojoModel.remove(redOrb); gojoModel.remove(blueOrb);
+        
+        const purpleMat = new THREE.MeshBasicMaterial({color: 0x8a2be2});
+        const purpleOrb = new THREE.Mesh(new THREE.SphereGeometry(2), purpleMat);
+        purpleOrb.position.set(0, 5, 3); // Перед Годжо
+        gojoModel.add(purpleOrb);
+
+        // 4. Еще через 1 сек выстрел
+        setTimeout(() => {
+            gojoModel.remove(purpleOrb); // Убираем от Годжо
+            
+            // Превращаем в снаряд в мире (летит туда, куда смотрел Годжо)
+            let worldPos = new THREE.Vector3();
+            purpleOrb.getWorldPosition(worldPos);
+            let worldDir = new THREE.Vector3();
+            gojoModel.getWorldDirection(worldDir);
+
+            const giantPurple = new THREE.Mesh(new THREE.SphereGeometry(3), purpleMat);
+            giantPurple.position.copy(worldPos);
+            scene.add(giantPurple);
+
+            activeProjectiles.push({ mesh: giantPurple, dir: worldDir, type: 'purple', speed: 0.5 });
+
+            // Годжо опускается
+            gojoModel.position.y = 0;
+            isCastingPurple = false;
+        }, 1000);
+
+    }, 3000);
+}
+
+function createProjectile(color, startPos, type) {
     const mat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.8 });
-    const orb = new THREE.Mesh(geo, mat);
-    orb.position.copy(startPos);
-    orb.position.y += 4; // Бросок от груди
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.5), mat);
+    orb.position.copy(startPos); orb.position.y += 4;
     scene.add(orb);
 
-    activeProjectiles.push({ mesh: orb, target: targetPos, type: type, speed: 0.2 });
+    // Летит в ту сторону, куда смотрит Годжо
+    let dir = new THREE.Vector3();
+    gojoModel.getWorldDirection(dir);
+    activeProjectiles.push({ mesh: orb, dir: dir, type: type, speed: 0.3 });
 }
 
 function createExplosion(color, pos) {
-    const geo = new THREE.SphereGeometry(1, 32, 32);
     const mat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.9 });
-    const bomb = new THREE.Mesh(geo, mat);
-    bomb.position.copy(pos);
-    bomb.position.y += 5; // Над пальцами
-    bomb.position.x += 1.5; // Чуть впереди
+    const bomb = new THREE.Mesh(new THREE.SphereGeometry(1), mat);
+    bomb.position.copy(pos); bomb.position.y += 5; bomb.position.x += 1.5;
     scene.add(bomb);
 
-    // Взрыв (увеличивается и исчезает)
     let scale = 1;
     let explInterval = setInterval(() => {
-        scale += 0.5;
-        bomb.scale.set(scale, scale, scale);
-        bomb.material.opacity -= 0.1;
+        scale += 0.5; bomb.scale.set(scale, scale, scale); bomb.material.opacity -= 0.1;
         if(bomb.material.opacity <= 0) {
-            scene.remove(bomb);
-            dealDamage(300); // Урон от красного
-            clearInterval(explInterval);
+            scene.remove(bomb); dealDamage(500); clearInterval(explInterval);
         }
     }, 50);
 }
 
-// === ГЕНЕРАТОРЫ ФОРМ (Из прошлого шага) ===
-function createCylinder(r, h, c, x, y, z) { const g=new THREE.CylinderGeometry(r,r,h,32); const m=new THREE.MeshStandardMaterial({color:c}); const ms=new THREE.Mesh(g,m); ms.position.set(x,y,z); return ms; }
-function createArmWithJoint(r, h, c, sx, sy, sz) { const j=new THREE.Group(); j.position.set(sx,sy,sz); const g=new THREE.CylinderGeometry(r,r,h,32); const m=new THREE.MeshStandardMaterial({color:c}); const am=new THREE.Mesh(g,m); am.position.y=-h/2; j.add(am); return {joint:j, mesh:am}; }
-function createSphere(r, c, x, y, z) { const g=new THREE.SphereGeometry(r,32,32); const m=new THREE.MeshStandardMaterial({color:c}); const ms=new THREE.Mesh(g,m); ms.position.set(x,y,z); return ms; }
-function createPart(w, h, d, c, x, y, z) { const g=new THREE.BoxGeometry(w,h,d); const m=new THREE.MeshStandardMaterial({color:c}); const ms=new THREE.Mesh(g,m); ms.position.set(x,y,z); return ms; }
-function createAnimeHair(c, y) { const gr=new THREE.Group(); const m=new THREE.MeshStandardMaterial({color:c}); const b=new THREE.Mesh(new THREE.SphereGeometry(1.05,32,16,0,Math.PI*2,0,Math.PI/1.7), m); b.position.y=0.2; gr.add(b); for(let i=0;i<35;i++){ const s=new THREE.Mesh(new THREE.ConeGeometry(0.25,1.2,8), m); const t=Math.random()*Math.PI*2; const p=Math.random()*Math.PI/2.2; s.position.set(1.0*Math.sin(p)*Math.cos(t), 1.0*Math.cos(p)+0.2, 1.0*Math.sin(p)*Math.sin(t)); s.lookAt(2.0*Math.sin(p)*Math.cos(t), 2.0*Math.cos(p)+0.2, 2.0*Math.sin(p)*Math.sin(t)); s.rotateX(Math.PI/2); gr.add(s); } gr.position.y=y; return gr; }
-function createTattooRing(r, c, y) { const g=new THREE.TorusGeometry(r,0.05,8,24); const m=new THREE.MeshStandardMaterial({color:c}); const ms=new THREE.Mesh(g,m); ms.rotation.x=Math.PI/2; ms.position.y=y; return ms; }
+// === ГЕНЕРАТОРЫ ФОРМ (Сжатые для экономии места) ===
+function createCylinder(r, h, c, x, y, z) { const ms=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,32),new THREE.MeshStandardMaterial({color:c})); ms.position.set(x,y,z); return ms; }
+function createArmWithJoint(r, h, c, sx, sy, sz) { const j=new THREE.Group(); j.position.set(sx,sy,sz); const am=new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,32),new THREE.MeshStandardMaterial({color:c})); am.position.y=-h/2; j.add(am); return {joint:j, mesh:am}; }
+function createSphere(r, c, x, y, z) { const ms=new THREE.Mesh(new THREE.SphereGeometry(r,32,32),new THREE.MeshStandardMaterial({color:c})); ms.position.set(x,y,z); return ms; }
+function createPart(w, h, d, c, x, y, z) { const ms=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color:c})); ms.position.set(x,y,z); return ms; }
+function createAnimeHair(c, y) { const gr=new THREE.Group(); const m=new THREE.MeshStandardMaterial({color:c}); const b=new THREE.Mesh(new THREE.SphereGeometry(1.05,32,16,0,Math.PI*2,0,Math.PI/1.7), m); b.position.y=0.2; gr.add(b); for(let i=0;i<35;i++){ const s=new THREE.Mesh(new THREE.ConeGeometry(0.25,1.2,8), m); const p=Math.random()*Math.PI/2.2, t=Math.random()*Math.PI*2; s.position.set(Math.sin(p)*Math.cos(t), Math.cos(p)+0.2, Math.sin(p)*Math.sin(t)); s.lookAt(2*Math.sin(p)*Math.cos(t), 2*Math.cos(p)+0.2, 2*Math.sin(p)*Math.sin(t)); s.rotateX(Math.PI/2); gr.add(s); } gr.position.y=y; return gr; }
+function createTattooRing(r, c, y) { const ms=new THREE.Mesh(new THREE.TorusGeometry(r,0.05,8,24),new THREE.MeshStandardMaterial({color:c})); ms.rotation.x=Math.PI/2; ms.position.y=y; return ms; }
 
 function createGojo() {
     const gr = new THREE.Group(); const s = 0xffe0bd, bl = 0x111111, w = 0xffffff, bu = 0x00aaff;
@@ -251,25 +309,50 @@ function animate() {
         camera.position.z = Math.cos(angle) * 12;
         camera.lookAt(0, 4, 0);
     } else {
-        // Логика полета скиллов
+        // ДВИЖЕНИЕ ГОДЖО
+        let speed = 0.15;
+        if(move.up) gojoModel.position.x += speed;
+        if(move.down) gojoModel.position.x -= speed;
+        if(move.left) gojoModel.position.z -= speed;
+        if(move.right) gojoModel.position.z += speed;
+
+        // КАМЕРА И ПРИЦЕЛ
+        if(isLockedOn && !isDead) {
+            // Годжо всегда смотрит на врага
+            gojoModel.lookAt(sukunaModel.position);
+            // Камера за спиной Годжо, но смотрит на врага
+            let offset = new THREE.Vector3(0, 8, -12); // Дальше и выше
+            offset.applyQuaternion(gojoModel.quaternion);
+            camera.position.copy(gojoModel.position).add(offset);
+            camera.lookAt(sukunaModel.position);
+        } else {
+            // Свободная камера: висит за спиной Годжо (по оси X)
+            gojoModel.rotation.y = Math.PI / 2; // Смотрит в сторону +X
+            camera.position.set(gojoModel.position.x - 12, gojoModel.position.y + 8, gojoModel.position.z);
+            camera.lookAt(gojoModel.position.x + 5, 4, gojoModel.position.z);
+        }
+
+        // ЛОГИКА СНАРЯДОВ (Blue & Purple)
         for(let i = activeProjectiles.length - 1; i >= 0; i--) {
             let p = activeProjectiles[i];
-            
-            // Движение к цели
-            let dir = new THREE.Vector3().subVectors(p.target, p.mesh.position).normalize();
-            p.mesh.position.add(dir.multiplyScalar(p.speed));
+            // Двигаем по вектору направления
+            p.mesh.position.add(p.dir.clone().multiplyScalar(p.speed));
 
-            // Проверка столкновения (если близко к Сукуне)
-            if(p.mesh.position.distanceTo(p.target) < 1.5) {
+            // Проверка попадания по Сукуне
+            if(!isDead && p.mesh.position.distanceTo(sukunaModel.position) < (p.type === 'purple' ? 4 : 2)) {
                 scene.remove(p.mesh);
                 activeProjectiles.splice(i, 1);
                 
                 if(p.type === 'blue') {
-                    dealDamage(200);
-                    // Эффект притягивания (Сукуна дергается вперед)
-                    sukunaModel.position.x -= 0.5;
-                    setTimeout(() => { sukunaModel.position.x += 0.5; }, 1000);
+                    dealDamage(500);
+                    sukunaModel.position.lerp(p.mesh.position, 0.5); // Притягивание
+                } else if(p.type === 'purple') {
+                    dealDamage(8000); // Фиолетовый сносит огромное кол-во ХП
                 }
+            } else if (p.mesh.position.length() > 50) {
+                // Удаляем если улетел за карту
+                scene.remove(p.mesh);
+                activeProjectiles.splice(i, 1);
             }
         }
     }
